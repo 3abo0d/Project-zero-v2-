@@ -40,14 +40,19 @@ jobs:
         working-directory: _src/Project-zero-v2
         run: gradle --no-daemon clean assembleDebug
 
-      - name: Verify APK packaging (not a runtime test)
+      - name: Diagnose APK contents
+        if: always()
         run: |
-          APK=_src/Project-zero-v2/app/build/outputs/apk/debug/app-debug.apk
-          ls -l "$APK"
-          unzip -tq "$APK"
-          unzip -l "$APK" | grep -E "classes.dex|assets/xposed_init|AndroidManifest.xml"
-          unzip -p "$APK" assets/xposed_init
-          unzip -p "$APK" classes.dex | strings | grep -c "com/liquidglass/nativecc/v2/V2Entry"
+          cd _src/Project-zero-v2
+          APK=app/build/outputs/apk/debug/app-debug.apk
+          unzip -l "$APK" || true
+          echo "=== compiled .class files ==="
+          find app/build -name "*.class" | head -50
+          echo "=== java sources seen ==="
+          find app/src -name "*.java"
+          echo "=== DEX classes ==="
+          unzip -o -q "$APK" classes.dex -d /tmp/dx
+          "$ANDROID_HOME/build-tools/36.0.0/dexdump" /tmp/dx/classes.dex | grep "Class descriptor" || true
 
       - uses: actions/upload-artifact@v4
         with:
